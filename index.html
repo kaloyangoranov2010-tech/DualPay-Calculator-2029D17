@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>DualPay Calculator 2030D17 — Калоян Горанов</title>
+
+  <!-- PWA & Meta -->
+  <meta name="theme-color" content="#071029" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="DualPay Calculator 2030D17" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DualPay Calculator" />
+  <meta name="description" content="PWA за изчисляване на ресто в BGN и EUR — DualPay Calculator 2030D17" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Baloo+2:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind (single-file friendly) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appbg: '#071029',
+            accentA: '#0ea5e9',
+            accentB: '#6366f1',
+            card: 'rgba(255,255,255,0.03)'
+          },
+          fontFamily: {
+            heading: ['"Baloo 2"', 'cursive'],
+            ui: ['Inter', 'system-ui', 'sans-serif']
+          },
+          boxShadow: {
+            'deep-lg': '0 18px 50px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.03)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --rate: 1.95583;
+      --bg: #071029;
+      --pattern-opacity: 0.08;
+      --symbol-opacity: 0.16; /* visible but subtle */
+      --input-text: #ffffff;
+      --input-placeholder: rgba(255,255,255,0.48);
+      --input-bg: rgba(255,255,255,0.04);
+      --focus-ring: rgba(99,102,241,0.22);
+    }
+
+    html,body,#app { height:100%; background: var(--bg); }
+
+    /* App-like window */
+    .app-window {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.04);
+      box-shadow: var(--tw-shadow, 0 18px 50px rgba(2,6,23,0.6));
+      backdrop-filter: blur(10px) saturate(120%);
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
+    }
+
+    /* Patterned tiled background (subtle chess of shapes) */
+    .pattern-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-repeat: repeat;
+      background-size: 240px 240px;
+      opacity: var(--pattern-opacity);
+      mix-blend-mode: overlay;
+      filter: contrast(0.95) brightness(0.95);
+      animation: float 26s ease-in-out infinite;
+      transform-origin: center;
+    }
+    @keyframes float {
+      0% { transform: translate3d(-8px,-6px,0) rotate(-1deg) scale(1); }
+      50% { transform: translate3d(8px,6px,0) rotate(1deg) scale(1.03); }
+      100% { transform: translate3d(-8px,-6px,0) rotate(-1deg) scale(1); }
+    }
+
+    /* Floating distinct € and лв symbols for better contrast and motion */
+    .floating-symbols {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: visible;
+      mix-blend-mode: screen;
+    }
+    .symbol {
+      position: absolute;
+      will-change: transform, opacity;
+      opacity: var(--symbol-opacity);
+      filter: drop-shadow(0 8px 20px rgba(2,6,23,0.6));
+    }
+
+    /* Individual animation presets */
+    @keyframes floatSlowA {
+      0% { transform: translate3d(-10px, -8px, 0) rotate(-4deg) scale(1); opacity: 0.14; }
+      50% { transform: translate3d(10px, 12px, 0) rotate(4deg) scale(1.06); opacity: 0.18; }
+      100% { transform: translate3d(-10px, -8px, 0) rotate(-4deg) scale(1); opacity: 0.14; }
+    }
+    @keyframes floatSlowB {
+      0% { transform: translate3d(6px, -6px, 0) rotate(2deg) scale(0.98); opacity: 0.12; }
+      50% { transform: translate3d(-6px, 8px, 0) rotate(-2deg) scale(1.03); opacity: 0.18; }
+      100% { transform: translate3d(6px, -6px, 0) rotate(2deg) scale(0.98); opacity: 0.12; }
+    }
+    @keyframes floatSlowC {
+      0% { transform: translate3d(-4px, 6px, 0) rotate(0deg) scale(1.02); opacity: 0.10; }
+      50% { transform: translate3d(8px, -10px, 0) rotate(6deg) scale(1.08); opacity: 0.20; }
+      100% { transform: translate3d(-4px, 6px, 0) rotate(0deg) scale(1.02); opacity: 0.10; }
+    }
+
+    .s-a { animation: floatSlowA 28s ease-in-out infinite; }
+    .s-b { animation: floatSlowB 34s ease-in-out infinite; }
+    .s-c { animation: floatSlowC 30s ease-in-out infinite; }
+
+    /* Make inputs clearer and always visible */
+    input, select, textarea {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+      backdrop-filter: blur(6px);
+      background: var(--input-bg);
+      color: var(--input-text) !important;       /* enforce visible text color */
+      caret-color: var(--input-text);
+      -webkit-text-fill-color: var(--input-text);/* iOS/webkit text fill */
+      font-family: inherit;
+    }
+
+    /* Placeholder variants */
+    input::placeholder, textarea::placeholder, select::placeholder {
+      color: var(--input-placeholder) !important;
+      opacity: 1;
+    }
+    /* vendor placeholders */
+    input::-webkit-input-placeholder { color: var(--input-placeholder) !important; }
+    input:-moz-placeholder { color: var(--input-placeholder) !important; opacity:1; }
+    input::-moz-placeholder { color: var(--input-placeholder) !important; opacity:1; }
+    input:-ms-input-placeholder { color: var(--input-placeholder) !important; }
+
+    /* Selection inside inputs */
+    input::selection, textarea::selection {
+      background: var(--focus-ring);
+      color: #fff;
+    }
+    ::selection { background: rgba(99,102,241,0.12); color: #fff; }
+
+    /* Autofill (chrome) */
+    input:-webkit-autofill, textarea:-webkit-autofill, select:-webkit-autofill {
+      -webkit-text-fill-color: var(--input-text) !important;
+      transition: background-color 5000s ease-in-out 0s;
+    }
+
+    /* Make select options legible (browsers vary) */
+    select, select option {
+      color: var(--input-text) !important;
+      background: rgba(8,10,18,0.85) !important;
+    }
+
+    /* Give segmented buttons clear contrast */
+    .segmented button { transition: background-color .16s, color .16s; color: var(--input-text); }
+    .segmented .active { background: rgba(255,255,255,0.11); color: #fff; }
+
+    /* Result animation */
+    .result-enter { transition: transform .25s cubic-bezier(.2,.9,.2,1), opacity .25s ease; transform-origin: center; }
+    .result-hidden { opacity: 0; transform: translateY(8px) scale(.995); }
+    .result-visible { opacity: 1; transform: translateY(0) scale(1); }
+
+    /* mobile one-hand spacing */
+    @media (max-width: 640px) {
+      .one-hand-spacing { padding-bottom: 16vh; }
+    }
+
+    /* Logo tile */
+    .logo-tile {
+      width:64px; height:64px; border-radius:14px;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: 0 6px 18px rgba(2,6,23,0.45), inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    /* small accessibility tweak: larger hit area for segmented buttons on mobile */
+    .segmented button { padding-left: 0.85rem; padding-right: 0.85rem; }
+  </style>
+
+  <!-- Use a static manifest file (don't generate a blob manifest at runtime) -->
+  <link rel="manifest" href="./manifest.json">
+  <!-- Provide an apple-touch icon; adjust path if your icon is in /icons/ -->
+  <link rel="apple-touch-icon" href="./icon-512.svg">
+</head>
+<body class="font-ui text-slate-100 antialiased">
+  <div id="app" class="min-h-screen flex items-center justify-center p-6 relative" style="background: var(--bg);">
+
+    <!-- Subtle tiled pattern -->
+    <div id="pattern" class="pattern-bg rounded-xl" aria-hidden="true"></div>
+
+    <!-- Floating distinct € and лв symbols for better contrast and motion -->
+    <div class="floating-symbols" aria-hidden="true">
+      <!-- Large Euro, top-left -->
+      <svg class="symbol s-a" style="left:6%; top:8%; width:160px; height:160px; transform-origin:center;" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-eur" x1="0" x2="1"><stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+        </defs>
+        <circle cx="64" cy="64" r="64" fill="url(#g-eur)" opacity="0.12"/>
+        <text x="64" y="80" text-anchor="middle" font-family="Baloo 2, Inter, sans-serif" font-weight="700" font-size="72" fill="white" opacity="0.98">€</text>
+      </svg>
+
+      <!-- Large BGN symbol, bottom-right -->
+      <svg class="symbol s-b" style="right:6%; bottom:6%; width:140px; height:140px; transform-origin:center;" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-bgn" x1="0" x2="1"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+        </defs>
+        <circle cx="64" cy="64" r="64" fill="url(#g-bgn)" opacity="0.12"/>
+        <text x="64" y="74" text-anchor="middle" font-family="Baloo 2, Inter, sans-serif" font-weight="700" font-size="42" fill="white" opacity="0.98">лв</text>
+      </svg>
+
+      <!-- Medium Euro, near center-left -->
+      <svg class="symbol s-c" style="left:18%; top:46%; width:100px; height:100px; transform-origin:center;" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-eur2" x1="0" x2="1"><stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+        </defs>
+        <circle cx="64" cy="64" r="64" fill="url(#g-eur2)" opacity="0.10"/>
+        <text x="64" y="78" text-anchor="middle" font-family="Baloo 2, Inter, sans-serif" font-weight="700" font-size="56" fill="white" opacity="0.95">€</text>
+      </svg>
+
+      <!-- Small BGN, upper-right -->
+      <svg class="symbol s-a" style="right:14%; top:16%; width:88px; height:88px; transform-origin:center;" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-bgn2" x1="0" x2="1"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+        </defs>
+        <circle cx="64" cy="64" r="64" fill="url(#g-bgn2)" opacity="0.10"/>
+        <text x="64" y="72" text-anchor="middle" font-family="Baloo 2, Inter, sans-serif" font-weight="700" font-size="36" fill="white" opacity="0.98">лв</text>
+      </svg>
+    </div>
+
+    <!-- App window -->
+    <main class="relative z-10 w-full max-w-xl app-window rounded-2xl p-6 sm:p-8 one-hand-spacing">
+      <header class="flex items-center gap-4">
+        <!-- Tile with refined blue-indigo gradient, rounded -->
+        <div class="flex-none logo-tile" style="background: linear-gradient(135deg,#0ea5e9,#6366f1);">
+          <div style="width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center;">
+            <!-- refined symbol -->
+            <svg width="36" height="36" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="lg1" x1="0" x2="1"><stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="12" fill="url(#lg1)"/>
+              <g fill="white" font-family="Baloo 2, serif" font-weight="700" font-size="20" text-anchor="middle" dominant-baseline="central">
+                <text x="22" y="36">€</text>
+                <text x="42" y="32" font-size="18">лв</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <h1 class="text-white font-heading text-2xl leading-tight">DualPay Calculator</h1>
+          <p class="text-slate-300 text-sm mt-0.5">PWA • Рesto в BGN & EUR — Автор: Калоян Горанов</p>
+        </div>
+
+        <!-- Install button: initially hidden; shown when beforeinstallprompt fires -->
+        <div style="margin-left:auto;">
+          <button id="install-btn" class="hidden rounded-lg px-3 py-2 text-sm bg-indigo-600/90 hover:bg-indigo-500">Инсталирай</button>
+        </div>
+      </header>
+
+      <section class="mt-6 grid gap-4">
+        <!-- Сума за плащане -->
+        <label class="block">
+          <span class="text-slate-300 text-sm">Сума за плащане</span>
+          <div class="mt-2 flex gap-2">
+            <input id="amount" inputmode="decimal" type="text" placeholder="0.00"
+                   class="flex-1 rounded-xl px-4 py-3 bg-white/6 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                   aria-label="Сума за плащане" />
+            <select id="amount-currency" class="rounded-xl px-3 py-3 bg-white/6">
+              <option value="BGN">BGN — лв</option>
+              <option value="EUR">EUR — €</option>
+            </select>
+          </div>
+        </label>
+
+        <!-- Платено полета -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-slate-300 text-sm">Платено в лв</span>
+            <input id="paid-bgn" inputmode="decimal" type="text" placeholder="0.00"
+                   class="mt-2 rounded-xl px-4 py-3 bg-white/4 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          </label>
+          <label class="block">
+            <span class="text-slate-300 text-sm">Платено в €</span>
+            <input id="paid-eur" inputmode="decimal" type="text" placeholder="0.00"
+                   class="mt-2 rounded-xl px-4 py-3 bg-white/4 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          </label>
+        </div>
+
+        <!-- Error box -->
+        <div id="error-box" class="hidden rounded-xl p-3 bg-red-600/10 border border-red-600 text-red-300">
+          <strong id="error-msg" class="block text-sm"></strong>
+        </div>
+
+        <!-- Result -->
+        <div id="result-card" class="result-enter result-hidden rounded-2xl p-4 bg-gradient-to-b from-white/4 to-white/3 border border-white/6">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-slate-300">Ресто</div>
+              <div id="change-primary" class="mt-1 text-2xl font-semibold text-white font-ui">—</div>
+              <div id="change-secondary" class="text-xs text-slate-400 mt-1">—</div>
+            </div>
+
+            <div class="segmented inline-flex rounded-xl bg-white/6 p-1">
+              <button id="seg-bgn" class="px-3 py-2 rounded-lg text-sm">BGN</button>
+              <button id="seg-eur" class="px-3 py-2 rounded-lg text-sm">EUR</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-400 mt-2">Пишете стойности в полетата; изчисленията се правят в реално време. За десетични използвайте точка или запетая.</p>
+      </section>
+
+      <footer class="mt-6 text-center text-slate-400 text-xs">
+        <div>Курс: 1 EUR = 1.95583 BGN</div>
+        <div class="mt-1">Калоян Горанов © 2026</div>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // Constants
+    const RATE = 1.95583;
+
+    // Elements
+    const amountInput = document.getElementById('amount');
+    const amountCurrency = document.getElementById('amount-currency');
+    const paidBgnInput = document.getElementById('paid-bgn');
+    const paidEurInput = document.getElementById('paid-eur');
+    const errorBox = document.getElementById('error-box');
+    const errorMsg = document.getElementById('error-msg');
+    const resultCard = document.getElementById('result-card');
+    const changePrimary = document.getElementById('change-primary');
+    const changeSecondary = document.getElementById('change-secondary');
+    const segBgn = document.getElementById('seg-bgn');
+    const segEur = document.getElementById('seg-eur');
+    const segmented = document.querySelector('.segmented');
+
+    // Formatters
+    const fmtBGN = new Intl.NumberFormat('bg-BG', { style: 'currency', currency: 'BGN', maximumFractionDigits: 2 });
+    const fmtEUR = new Intl.NumberFormat('bg-BG', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+
+    // Helpers
+    function sanitizeNumber(v) {
+      if (v === null || v === undefined) return NaN;
+      v = String(v).trim().replace(',', '.');
+      if (v === '') return NaN;
+      v = v.replace(/[^\d.-]/g, '');
+      return parseFloat(v);
+    }
+
+    function showError(text) {
+      errorMsg.textContent = text;
+      errorBox.classList.remove('hidden');
+      hideResult();
+    }
+    function hideError() { errorBox.classList.add('hidden'); }
+
+    function showResult() {
+      resultCard.classList.remove('result-hidden');
+      resultCard.classList.add('result-visible');
+    }
+    function hideResult() {
+      resultCard.classList.add('result-hidden');
+      resultCard.classList.remove('result-visible');
+    }
+
+    // Segmented control
+    let changeCurrency = 'BGN';
+    function setSegmented(currency) {
+      changeCurrency = currency;
+      segBgn.classList.remove('bg-white/10','text-white','active');
+      segEur.classList.remove('bg-white/10','text-white','active');
+      if (currency === 'BGN') {
+        segBgn.classList.add('bg-white/10', 'text-white','active');
+      } else {
+        segEur.classList.add('bg-white/10','text-white','active');
+      }
+      compute();
+    }
+    segBgn.addEventListener('click', () => setSegmented('BGN'));
+    segEur.addEventListener('click', () => setSegmented('EUR'));
+    setSegmented('BGN');
+
+    // Compute
+    function compute() {
+      hideError();
+
+      const amountRaw = sanitizeNumber(amountInput.value);
+      const currency = amountCurrency.value;
+      const paidBgn = sanitizeNumber(paidBgnInput.value) || 0;
+      const paidEur = sanitizeNumber(paidEurInput.value) || 0;
+
+      if (isNaN(amountRaw)) { hideResult(); return; }
+
+      // Convert amount to BGN
+      let amountBGN = currency === 'BGN' ? amountRaw : amountRaw * RATE;
+      amountBGN = Math.round((amountBGN + Number.EPSILON) * 100) / 100;
+
+      // Convert payments to BGN
+      const totalPaidBGN = Math.round(((paidBgn || 0) + (paidEur || 0) * RATE + Number.EPSILON) * 100) / 100;
+
+      if (totalPaidBGN < amountBGN - 0.001) {
+        const diffBGN = Math.round(((amountBGN - totalPaidBGN) + Number.EPSILON) * 100) / 100;
+        const diffEUR = Math.round(((diffBGN / RATE) + Number.EPSILON) * 100) / 100;
+        showError(`Недостатъчна сума — липсват ${fmtBGN.format(diffBGN)} (${fmtEUR.format(diffEUR)})`);
+        return;
+      }
+
+      const changeBGN = Math.round(((totalPaidBGN - amountBGN) + Number.EPSILON) * 100) / 100;
+      if (changeBGN <= 0.004) {
+        changePrimary.textContent = '0.00 лв';
+        changeSecondary.textContent = '0.00 €';
+        showResult();
+        return;
+      }
+
+      if (changeCurrency === 'BGN') {
+        changePrimary.textContent = fmtBGN.format(changeBGN);
+        changeSecondary.textContent = fmtEUR.format(Math.round(((changeBGN / RATE) + Number.EPSILON) * 100) / 100);
+      } else {
+        const changeEUR = Math.round(((changeBGN / RATE) + Number.EPSILON) * 100) / 100;
+        changePrimary.textContent = fmtEUR.format(changeEUR);
+        changeSecondary.textContent = fmtBGN.format(Math.round(((changeEUR * RATE) + Number.EPSILON) * 100) / 100);
+      }
+
+      showResult();
+    }
+
+    // Inputs listen
+    [amountInput, amountCurrency, paidBgnInput, paidEurInput].forEach(el => {
+      el.addEventListener('input', compute);
+      el.addEventListener('change', compute);
+    });
+
+    // Enter triggers compute
+    [amountInput, paidBgnInput, paidEurInput].forEach(el => {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); compute(); }
+      });
+    });
+
+    // Init empty
+    amountInput.value = '';
+    paidBgnInput.value = '';
+    paidEurInput.value = '';
+
+    // Patterned background generation (subtle tile)
+    (function generatePattern() {
+      const tileSize = 240;
+      const symbols = ['€', 'лв', '◦', '▦'];
+      const cols = 4, rows = 4;
+      const cellW = tileSize / cols, cellH = tileSize / rows;
+      let svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${tileSize}' height='${tileSize}' viewBox='0 0 ${tileSize} ${tileSize}'>`;
+      svg += `<rect width='100%' height='100%' fill='${'#071029'}' />`;
+      svg += `<g fill='#0f172a' opacity='0.9' font-family='Baloo 2, Inter, sans-serif' font-weight='700' font-size='36' text-anchor='middle' dominant-baseline='central'>`;
+      for (let r=0;r<rows;r++) {
+        for (let c=0;c<cols;c++) {
+          const sym = symbols[(c + r) % symbols.length];
+          const x = c * cellW + cellW/2;
+          const y = r * cellH + cellH/2 + ( (r%2===0) ? -4 : 4 );
+          svg += `<text x='${x}' y='${y}'>${sym}</text>`;
+        }
+      }
+      svg += `</g></svg>`;
+      const svgUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+      const patternEl = document.getElementById('pattern');
+      patternEl.style.backgroundImage = `url("${svgUrl}")`;
+      patternEl.style.backgroundSize = `${tileSize}px ${tileSize}px`;
+      patternEl.style.opacity = getComputedStyle(document.documentElement).getPropertyValue('--pattern-opacity') || '0.08';
+    })();
+
+    // PWA: register static service worker and handle install prompt
+    (function setupPWAStatic() {
+      // Install prompt handling
+      let deferredPrompt = null;
+      const installBtn = document.getElementById('install-btn');
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent automatic prompt; save event for later and show button
+        e.preventDefault();
+        deferredPrompt = e;
+        if (installBtn) installBtn.classList.remove('hidden');
+      });
+
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (!deferredPrompt) {
+            // fallback message for platforms that don't support beforeinstallprompt
+            alert('Ако браузърът не показва инсталиране, използвайте "Add to Home screen" в менюто на браузъра.');
+            return;
+          }
+          deferredPrompt.prompt();
+          const choice = await deferredPrompt.userChoice;
+          // optionally inspect choice.outcome
+          deferredPrompt = null;
+          installBtn.classList.add('hidden');
+        });
+      }
+
+      // Register a static service worker file placed at /sw.js or /service-worker.js or ./sw.js
+      if ('serviceWorker' in navigator) {
+        // Try common filenames. Adjust to match the file you added to repo (sw.js or service-worker.js).
+        const candidates = ['/sw.js', '/service-worker.js', './sw.js', './service-worker.js'];
+        (async function tryRegister() {
+          for (const url of candidates) {
+            try {
+              const reg = await navigator.serviceWorker.register(url);
+              console.log('Service worker registered at', url, reg.scope);
+              return;
+            } catch (err) {
+              // try next
+            }
+          }
+          console.warn('Service worker registration failed for all candidate paths.');
+        })();
+      }
+    })();
+  </script>
+</body>
+</html>
